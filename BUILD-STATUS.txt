@@ -1,0 +1,12 @@
+SpawnFly 1.0.1 source correction
+
+Changes based on the supplied latest.log:
+1. WorldGuard dependency changed from 7.0.21 to 7.0.19, matching the server's installed WorldGuard 7.0.19. The old binary failed with IncompatibleClassChangeError at RegionContainer.
+2. Removed PlayerDeathEvent because the server 26.3 API reports that class does not exist; the failed listener registration prevented all listeners in the class from registering.
+3. Temporary state is cleared on every PlayerRespawnEvent, so flight is not restored after death even if the player respawns in spawn.
+
+Build requirements: JDK 25 and Gradle 8.14+, with access to Paper and EngineHub Maven repositories.
+Build command: gradle clean build
+Output: build/libs/SpawnFly-1.0.1.jar
+
+IMPORTANT: This source package has NOT been compiled or runtime-tested here. The current environment only has JDK 21, no Gradle installation, and no repository network access. No replacement JAR is included.
