@@ -5,8 +5,5 @@ region: spawn
 permission: spawnfly.use
 
 messages:
-  enabled: "&aFlight enabled. It will turn off when you leave spawn."
-  disabled: "&cFlight disabled."
-  outside-region: "&cYou can only enable flight inside spawn."
-  left-region: "&cFlight disabled because you left spawn."
-  no-permission: "&cYou do not have permission to use /fly."
+  enabled: "&aSpawn flight enabled automatically."
+  left-region: "&cSpawn flight disabled because you left spawn."

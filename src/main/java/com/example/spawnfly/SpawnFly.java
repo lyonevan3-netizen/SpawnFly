@@ -4,15 +4,13 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import org.bukkit.Location;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -23,7 +21,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-public final class SpawnFly extends JavaPlugin implements Listener, CommandExecutor {
+public final class SpawnFly extends JavaPlugin implements Listener {
     private final Set<UUID> enabledPlayers = new HashSet<>();
     private String regionId;
     private String permission;
@@ -34,15 +32,11 @@ public final class SpawnFly extends JavaPlugin implements Listener, CommandExecu
         regionId = getConfig().getString("region", "spawn").toLowerCase(Locale.ROOT);
         permission = getConfig().getString("permission", "spawnfly.use");
 
-        if (getCommand("fly") == null) {
-            getLogger().severe("Command /fly is missing from plugin.yml; disabling.");
-            getServer().getPluginManager().disablePlugin(this);
-            return;
-        }
-
-        getCommand("fly").setExecutor(this);
         getServer().getPluginManager().registerEvents(this, this);
-        getLogger().info("SpawnFly enabled. WorldGuard region: " + regionId);
+        for (Player player : getServer().getOnlinePlayers()) {
+            syncFlight(player, player.getLocation(), true);
+        }
+        getLogger().info("SpawnFly enabled. Automatic flight region: " + regionId);
     }
 
     @Override
@@ -56,39 +50,6 @@ public final class SpawnFly extends JavaPlugin implements Listener, CommandExecu
         enabledPlayers.clear();
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use /fly.");
-            return true;
-        }
-
-        if (!player.hasPermission(permission)) {
-            player.sendMessage(color(getConfig().getString(
-                    "messages.no-permission", "&cYou do not have permission to use /fly.")));
-            return true;
-        }
-
-        UUID uuid = player.getUniqueId();
-
-        if (enabledPlayers.contains(uuid)) {
-            revokeFlight(player, getConfig().getString("messages.disabled", "&cFlight disabled."));
-            return true;
-        }
-
-        if (!isInsideSpawn(player.getLocation())) {
-            player.sendMessage(color(getConfig().getString(
-                    "messages.outside-region", "&cYou can only enable flight inside spawn.")));
-            return true;
-        }
-
-        enabledPlayers.add(uuid);
-        player.setAllowFlight(true);
-        player.sendMessage(color(getConfig().getString(
-                "messages.enabled", "&aFlight enabled. It will turn off when you leave spawn.")));
-        return true;
-    }
-
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
         checkExit(event.getPlayer(), event.getFrom(), event.getTo());
@@ -100,41 +61,29 @@ public final class SpawnFly extends JavaPlugin implements Listener, CommandExecu
     }
 
     private void checkExit(Player player, Location from, Location to) {
-        if (to == null || !enabledPlayers.contains(player.getUniqueId())) {
+        if (to == null || sameBlock(from, to)) {
             return;
         }
+        syncFlight(player, to, true);
+    }
 
-        // WorldGuard region membership is block-based. Avoid querying it for
-        // head rotation or movement within the same block.
-        if (sameBlock(from, to)) {
-            return;
-        }
-
-        if (!isInsideSpawn(to)) {
-            revokeFlight(player, getConfig().getString(
-                    "messages.left-region", "&cFlight disabled because you left spawn."));
-        }
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        syncFlight(event.getPlayer(), event.getPlayer().getLocation(), true);
     }
 
     @EventHandler
     public void onWorldChange(PlayerChangedWorldEvent event) {
         Player player = event.getPlayer();
-        if (enabledPlayers.contains(player.getUniqueId())
-                && !isInsideSpawn(player.getLocation())) {
-            revokeFlight(player, getConfig().getString(
-                    "messages.left-region", "&cFlight disabled because you left spawn."));
-        }
+        syncFlight(player, player.getLocation(), true);
     }
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
-        // PlayerDeathEvent is not present in this server's 26.3 API.
-        // Clear the temporary state on respawn regardless of destination so
-        // dying inside spawn never silently restores flight.
-        Player player = event.getPlayer();
-        if (enabledPlayers.contains(player.getUniqueId())) {
-            revokeFlight(player, null);
-        }
+        // Apply the region rule to the respawn destination. Flight is never
+        // restored outside spawn, but is automatically enabled if the player
+        // respawns inside spawn and has the required permission.
+        syncFlight(event.getPlayer(), event.getRespawnLocation(), true);
     }
 
     @EventHandler
@@ -142,6 +91,30 @@ public final class SpawnFly extends JavaPlugin implements Listener, CommandExecu
         Player player = event.getPlayer();
         if (enabledPlayers.contains(player.getUniqueId())) {
             revokeFlight(player, null);
+        }
+    }
+
+    private void syncFlight(Player player, Location location, boolean sendMessages) {
+        UUID uuid = player.getUniqueId();
+        boolean shouldFly = player.hasPermission(permission) && isInsideSpawn(location);
+
+        if (shouldFly) {
+            if (enabledPlayers.add(uuid)) {
+                player.setAllowFlight(true);
+                if (sendMessages) {
+                    player.sendMessage(color(getConfig().getString(
+                            "messages.enabled", "&aSpawn flight enabled automatically.")));
+                }
+            } else if (!player.getAllowFlight()) {
+                // Reassert the permission while the player remains in spawn.
+                player.setAllowFlight(true);
+            }
+            return;
+        }
+
+        if (enabledPlayers.contains(uuid)) {
+            revokeFlight(player, sendMessages ? getConfig().getString(
+                    "messages.left-region", "&cSpawn flight disabled.") : null);
         }
     }
 

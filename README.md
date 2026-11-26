@@ -1,4 +1,4 @@
-# SpawnFly 1.0.1
+# SpawnFly 1.0.2
 
 Standalone Paper + WorldGuard plugin. LuckPerms is used through Bukkit permission inheritance, so no LuckPerms API dependency is needed.
 
@@ -8,13 +8,13 @@ Standalone Paper + WorldGuard plugin. LuckPerms is used through Bukkit permissio
 - LuckPerms (to assign the permission to the specified groups)
 
 ## Install
-1. Put `SpawnFly-1.0.1.jar` in `plugins/`.
+1. Put `SpawnFly-1.0.2.jar` in `plugins/`.
 2. Ensure WorldGuard is installed and loads successfully.
 3. Restart the server.
 4. Check `plugins/SpawnFly/config.yml`; the region defaults to `spawn`.
 
 ## LuckPerms
-Run:
+Grant `spawnfly.use` to the allowed groups (or configure inheritance as appropriate):
 ```text
 /lp group staffhelpernew permission set spawnfly.use true
 /lp group staffmod permission set spawnfly.use true
@@ -26,35 +26,23 @@ Run:
 ```
 
 ## Behaviour
-- `/fly` manually enables flight only while inside the WorldGuard region `spawn`.
-- `/fly` toggles flight off again when already enabled.
-- On leaving the region, flight and the plugin's temporary state are revoked during the movement/teleport event.
-- Re-entering spawn never re-enables flight automatically.
-- Respawn (after death), disconnect, and plugin shutdown clear the temporary state. The server 26.3 API used here does not expose the older PlayerDeathEvent class.
-- No repeating task, polling loop, or async Bukkit calls are used.
+- Players with `spawnfly.use` automatically receive flight when they enter the WorldGuard region `spawn`.
+- Players who join or respawn inside `spawn` also receive flight automatically.
+- Flight is disabled when they leave the region. Re-entering automatically enables it again.
+- There is no `/fly` command.
+- Disconnect and plugin shutdown clear the plugin's temporary state.
+- No repeating task, polling loop, or async Bukkit calls are used; region checks are event-driven.
 
 ## Build from source
-Requires JDK 25 and Gradle 8.14+:
+Requires JDK 25 and Gradle 9.1.0 or newer with Java 25 runtime support:
 ```bash
 gradle clean build
 ```
-The build output is `build/libs/SpawnFly-1.0.1.jar`.
+The build output is `build/libs/SpawnFly-1.0.2.jar`.
 
-
-## Compatibility fix in 1.0.1
-- Compiles against WorldGuard 7.0.19, matching the target server. The previous build targeted 7.0.21 and failed at runtime because `RegionContainer` had a different binary type.
-- Removes the unavailable `PlayerDeathEvent` listener that prevented Bukkit from registering the plugin's listeners. Temporary flight state is instead cleared on every respawn.
+## Compatibility fixes
+- Uses WorldGuard 7.0.19, matching the target server.
+- Does not register the unavailable `PlayerDeathEvent` class from the earlier target API.
 
 ## Build on GitHub
-
-This project includes a GitHub Actions workflow at `.github/workflows/build.yml`.
-After uploading the project to a GitHub repository and pushing the files:
-
-1. Open the repository on GitHub.
-2. Select **Actions**.
-3. Open **Build SpawnFly** and wait for the run to finish.
-4. Open the successful run and download the **SpawnFly-1.0.1** artifact.
-
-The workflow builds with Java 25 and Gradle 8.14.3. The downloadable artifact is
-a ZIP containing the compiled plugin JAR. Only treat the JAR as built after a
-successful GitHub Actions run.
+This project includes a GitHub Actions workflow at `.github/workflows/build.yml`. Push the project to GitHub, open **Actions**, select **Build SpawnFly**, and download the **SpawnFly-1.0.2** artifact from a successful run. The workflow uses Java 25 and Gradle 9.1.0.

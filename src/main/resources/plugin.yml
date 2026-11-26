@@ -1,13 +1,9 @@
 name: SpawnFly
-version: 1.0.1
+version: 1.0.2
 main: com.example.spawnfly.SpawnFly
 api-version: '26.3'
 depend: [WorldGuard]
-commands:
-  fly:
-    description: Toggle flight while inside the WorldGuard spawn region
-    usage: /fly
 permissions:
   spawnfly.use:
-    description: Allows a player to toggle flight inside the spawn region
+    description: Allows automatic flight while inside the spawn region
     default: false
