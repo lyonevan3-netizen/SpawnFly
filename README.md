@@ -44,3 +44,17 @@ The build output is `build/libs/SpawnFly-1.0.1.jar`.
 ## Compatibility fix in 1.0.1
 - Compiles against WorldGuard 7.0.19, matching the target server. The previous build targeted 7.0.21 and failed at runtime because `RegionContainer` had a different binary type.
 - Removes the unavailable `PlayerDeathEvent` listener that prevented Bukkit from registering the plugin's listeners. Temporary flight state is instead cleared on every respawn.
+
+## Build on GitHub
+
+This project includes a GitHub Actions workflow at `.github/workflows/build.yml`.
+After uploading the project to a GitHub repository and pushing the files:
+
+1. Open the repository on GitHub.
+2. Select **Actions**.
+3. Open **Build SpawnFly** and wait for the run to finish.
+4. Open the successful run and download the **SpawnFly-1.0.1** artifact.
+
+The workflow builds with Java 25 and Gradle 8.14.3. The downloadable artifact is
+a ZIP containing the compiled plugin JAR. Only treat the JAR as built after a
+successful GitHub Actions run.
